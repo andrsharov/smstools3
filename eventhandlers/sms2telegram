@@ -1,0 +1,44 @@
+#!/bin/sh
+
+#Start block with path variables
+PATH_ICONV="/usr/bin/iconv"
+PATH_CURL="/usr/bin/curl"
+#End block with path variables
+
+# Start variables block
+TG_TOKEN="1234567890:hEdY6QctVdRSKA36dbNl9qPjtHi6WZhQNIA"
+TG_ID_CHAT="-1001234567890"
+TG_URL="https://api.telegram.org/bot$TG_TOKEN/sendMessage"
+# End variables block
+
+if [ "$1" = "RECEIVED" ] ; then
+    FROM=$(grep -a "From:" "$2" | awk -F ': ' '{printf $2}')
+    SENT=$(grep -a "Sent:" "$2" | awk -F ': ' '{printf $2}')
+    RECEIVED=$(grep -a "Received:" "$2" | awk -F ': ' '{printf $2}')
+    MODEM=$(grep -a "Modem:" "$2" | awk -F ': ' '{printf $2}')
+    ALPHABET=$(grep -a "Alphabet:" "$2" | awk -F ': ' '{printf $2}')
+
+    if [ "$ALPHABET" = "UCS2" ]; then
+      CONTENT=$(sed -e '1,/^$/ d' < "$2" | "$PATH_ICONV" -c -f UCS-2BE -t UTF-8)
+    else
+      CONTENT=$(sed -e '1,/^$/ d' < "$2")
+    fi
+
+    TG_TEXT=$(cat <<EOF
+From: ${FROM}
+Sent: ${SENT}
+Received: ${RECEIVED}
+Modem: ${MODEM}
+Alphabet: ${ALPHABET}
+
+${CONTENT}
+EOF
+)
+#Make JSON request to Telegram API
+    "$PATH_CURL" --connect-timeout 5 --max-time 10 --retry 7 --retry-delay 5 --retry-max-time 40 --retry-connrefused -X POST "$TG_URL" -H "Content-Type: application/json; charset=utf-8" -d "{\"chat_id\":\"$TG_ID_CHAT\", \"text\":\"$TG_TEXT\", \"protect_content\":\"True\"}"
+
+exit 0
+
+fi
+
+exit 0
